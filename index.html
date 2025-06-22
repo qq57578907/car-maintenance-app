@@ -1,0 +1,1746 @@
+        <html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爱车养护助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <!-- 新增导出功能所需的库 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/FileSaver.js@2.0.5/dist/FileSaver.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#0FC6C2',
+                        accent: '#FF7D00',
+                        success: '#00B42A',
+                        warning: '#FF7D00',
+                        danger: '#F53F3F',
+                        dark: '#1D2129',
+                        'dark-2': '#4E5969',
+                        'light-1': '#F2F3F5',
+                        'light-2': '#E5E6EB',
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .btn-primary {
+                @apply bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+            .btn-secondary {
+                @apply bg-white border border-primary text-primary hover:bg-primary/5 font-medium py-2 px-4 rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 text-dark min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="mainHeader">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-car text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-primary">爱车养护助手</h1>
+            </div>
+            
+            <nav class="hidden md:flex items-center space-x-6">
+                <a href="#dashboard" class="text-dark-2 hover:text-primary transition-colors duration-200 font-medium">仪表盘</a>
+                <a href="#vehicles" class="text-dark-2 hover:text-primary transition-colors duration-200 font-medium">我的车辆</a>
+                <a href="#maintenance" class="text-dark-2 hover:text-primary transition-colors duration-200 font-medium">保养记录</a>
+                <a href="#reminders" class="text-dark-2 hover:text-primary transition-colors duration-200 font-medium">保养提醒</a>
+            </nav>
+            
+            <div class="flex items-center space-x-4">
+                <button id="addVehicleBtn" class="hidden md:flex items-center btn-primary">
+                    <i class="fa fa-plus mr-2"></i>添加车辆
+                </button>
+                <button id="mobileMenuBtn" class="md:hidden text-dark text-xl">
+                    <i class="fa fa-bars"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 移动端菜单 -->
+        <div id="mobileMenu" class="md:hidden bg-white shadow-lg absolute w-full left-0 top-full transform -translate-y-full opacity-0 transition-all duration-300 pointer-events-none">
+            <div class="container mx-auto px-4 py-3 flex flex-col space-y-4">
+                <a href="#dashboard" class="text-dark-2 hover:text-primary transition-colors duration-200 font-medium py-2 border-b border-gray-100">仪表盘</a>
+                <a href="#vehicles" class="text-dark-2 hover:text-primary transition-colors duration-200 font-medium py-2 border-b border-gray-100">我的车辆</a>
+                <a href="#maintenance" class="text-dark-2 hover:text-primary transition-colors duration-200 font-medium py-2 border-b border-gray-100">保养记录</a>
+                <a href="#reminders" class="text-dark-2 hover:text-primary transition-colors duration-200 font-medium py-2">保养提醒</a>
+                <button id="addVehicleBtnMobile" class="flex items-center justify-center btn-primary">
+                    <i class="fa fa-plus mr-2"></i>添加车辆
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow pt-20 pb-16">
+        <!-- 欢迎横幅 -->
+        <section class="bg-gradient-to-r from-primary to-secondary text-white py-12 mb-10">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col md:flex-row items-center justify-between">
+                    <div class="mb-6 md:mb-0">
+                        <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-3 text-shadow">欢迎回来，车主！</h2>
+                        <p class="text-white/90 text-lg max-w-xl">您的爱车保养记录尽在掌握，让养护更智能、更省心。</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="quickAddBtn" class="bg-white text-primary hover:bg-white/90 font-medium py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl flex items-center">
+                            <i class="fa fa-plus-circle mr-2 text-xl"></i>快速添加记录
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 仪表盘 -->
+        <section id="dashboard" class="container mx-auto px-4 mb-12">
+            <h2 class="text-2xl font-bold mb-6 flex items-center">
+                <i class="fa fa-dashboard text-primary mr-2"></i>车辆仪表盘
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- 车辆总数卡片 -->
+                <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-dark-2 font-medium">车辆总数</h3>
+                        <div class="bg-primary/10 text-primary p-2 rounded-lg">
+                            <i class="fa fa-car text-xl"></i>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold" id="vehicleCount">0</p>
+                    <p class="text-success flex items-center mt-2 text-sm">
+                        <i class="fa fa-arrow-up mr-1"></i>较上月 <span>0%</span>
+                    </p>
+                </div>
+                
+                <!-- 待保养车辆卡片 -->
+                <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-dark-2 font-medium">待保养车辆</h3>
+                        <div class="bg-warning/10 text-warning p-2 rounded-lg">
+                            <i class="fa fa-bell text-xl"></i>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold" id="pendingMaintenanceCount">0</p>
+                    <p class="text-danger flex items-center mt-2 text-sm">
+                        <i class="fa fa-arrow-up mr-1"></i>较上月 <span>0%</span>
+                    </p>
+                </div>
+                
+                <!-- 已完成保养卡片 -->
+                <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-dark-2 font-medium">本月已保养</h3>
+                        <div class="bg-success/10 text-success p-2 rounded-lg">
+                            <i class="fa fa-check-circle text-xl"></i>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold" id="completedMaintenanceCount">0</p>
+                    <p class="text-success flex items-center mt-2 text-sm">
+                        <i class="fa fa-arrow-up mr-1"></i>较上月 <span>0%</span>
+                    </p>
+                </div>
+                
+                <!-- 总保养费用卡片 -->
+                <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-dark-2 font-medium">总保养费用</h3>
+                        <div class="bg-accent/10 text-accent p-2 rounded-lg">
+                            <i class="fa fa-cny text-xl"></i>
+                        </div>
+                    </div>
+                    <p class="text-3xl font-bold" id="totalCost">¥0</p>
+                    <p class="text-dark-2 flex items-center mt-2 text-sm">
+                        <i class="fa fa-calendar mr-1"></i>最近更新: <span>今天</span>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- 图表区域 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 保养费用趋势图 -->
+                <div class="bg-white rounded-xl shadow-md p-6 lg:col-span-2">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="font-bold text-lg">保养费用趋势</h3>
+                        <div class="flex space-x-2">
+                            <button class="bg-primary/10 text-primary text-sm py-1 px-3 rounded-full">月</button>
+                            <button class="bg-light-1 text-dark-2 text-sm py-1 px-3 rounded-full">季</button>
+                            <button class="bg-light-1 text-dark-2 text-sm py-1 px-3 rounded-full">年</button>
+                        </div>
+                    </div>
+                    <div class="h-80">
+                        <canvas id="costTrendChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 保养类型分布 -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h3 class="font-bold text-lg mb-6">保养类型分布</h3>
+                    <div class="h-80">
+                        <canvas id="maintenanceTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 我的车辆 -->
+        <section id="vehicles" class="container mx-auto px-4 mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold flex items-center">
+                    <i class="fa fa-car text-primary mr-2"></i>我的车辆
+                </h2>
+                <button id="addNewVehicleBtn" class="btn-primary hidden md:block">
+                    <i class="fa fa-plus mr-2"></i>添加车辆
+                </button>
+            </div>
+            
+            <!-- 空状态 -->
+            <div id="emptyVehiclesState" class="py-16 flex flex-col items-center justify-center text-center">
+                <div class="bg-primary/10 p-6 rounded-full mb-6">
+                    <i class="fa fa-car text-4xl text-primary"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">您还没有添加任何车辆</h3>
+                <p class="text-dark-2 max-w-md mb-6">添加您的爱车信息，开始记录保养历史和设置保养提醒</p>
+                <button id="addVehicleBtnEmpty" class="btn-primary">
+                    <i class="fa fa-plus mr-2"></i>添加第一辆车
+                </button>
+            </div>
+            
+            <!-- 车辆列表 -->
+            <div id="vehiclesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+                <!-- 车辆卡片将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <!-- 最近保养记录 -->
+        <section id="maintenance" class="container mx-auto px-4 mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold flex items-center">
+                    <i class="fa fa-history text-primary mr-2"></i>最近保养记录
+                </h2>
+                <div class="flex space-x-3">
+                    <a href="#" class="text-primary hover:text-primary/80 font-medium flex items-center">
+                        查看全部 <i class="fa fa-arrow-right ml-1"></i>
+                    </a>
+                    <button id="exportMaintenanceBtn" class="btn-secondary flex items-center">
+                        <i class="fa fa-download mr-2"></i>导出记录
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 空状态 -->
+            <div id="emptyMaintenanceState" class="py-16 flex flex-col items-center justify-center text-center">
+                <div class="bg-primary/10 p-6 rounded-full mb-6">
+                    <i class="fa fa-file-text-o text-4xl text-primary"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">暂无保养记录</h3>
+                <p class="text-dark-2 max-w-md mb-6">添加车辆后，您可以记录每次的保养信息，方便随时查看</p>
+                <button id="addMaintenanceBtnEmpty" class="btn-primary">
+                    <i class="fa fa-plus mr-2"></i>添加保养记录
+                </button>
+            </div>
+            
+            <!-- 保养记录列表 -->
+            <div id="maintenanceList" class="space-y-4 hidden">
+                <!-- 保养记录将通过JavaScript动态生成 -->
+            </div>
+        </section>
+
+        <!-- 保养提醒 -->
+        <section id="reminders" class="container mx-auto px-4 mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold flex items-center">
+                    <i class="fa fa-bell text-primary mr-2"></i>保养提醒
+                </h2>
+                <button id="addReminderBtn" class="btn-secondary">
+                    <i class="fa fa-plus mr-2"></i>添加提醒
+                </button>
+            </div>
+            
+            <!-- 空状态 -->
+            <div id="emptyRemindersState" class="py-16 flex flex-col items-center justify-center text-center">
+                <div class="bg-primary/10 p-6 rounded-full mb-6">
+                    <i class="fa fa-bell-o text-4xl text-primary"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">暂无保养提醒</h3>
+                <p class="text-dark-2 max-w-md mb-6">设置保养提醒，及时维护您的爱车，延长使用寿命</p>
+                <button id="addReminderBtnEmpty" class="btn-primary">
+                    <i class="fa fa-plus mr-2"></i>添加提醒
+                </button>
+            </div>
+            
+            <!-- 提醒列表 -->
+            <div id="remindersList" class="space-y-4 hidden">
+                <!-- 提醒卡片将通过JavaScript动态生成 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
+                <p>© 2025 爱车养护助手. 保留所有权利.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 添加车辆模态框 -->
+    <div id="addVehicleModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 transform scale-95 transition-transform duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold">添加车辆</h3>
+                    <button id="closeVehicleModal" class="text-gray-400 hover:text-dark transition-colors">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="addVehicleForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="vehicleBrand" class="block text-sm font-medium text-dark-2 mb-1">品牌</label>
+                            <input type="text" id="vehicleBrand" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：大众">
+                        </div>
+                        <div>
+                            <label for="vehicleModel" class="block text-sm font-medium text-dark-2 mb-1">型号</label>
+                            <input type="text" id="vehicleModel" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：帕萨特">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="vehicleYear" class="block text-sm font-medium text-dark-2 mb-1">年份</label>
+                            <input type="number" id="vehicleYear" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：2020">
+                        </div>
+                        <div>
+                            <label for="vehicleColor" class="block text-sm font-medium text-dark-2 mb-1">颜色</label>
+                            <input type="text" id="vehicleColor" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：黑色">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="vehiclePlate" class="block text-sm font-medium text-dark-2 mb-1">车牌号</label>
+                        <input type="text" id="vehiclePlate" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：京A12345">
+                    </div>
+                    
+                    <div>
+                        <label for="vehicleMileage" class="block text-sm font-medium text-dark-2 mb-1">当前里程（公里）</label>
+                        <input type="number" id="vehicleMileage" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：50000">
+                    </div>
+                    
+                    <div>
+                        <label for="vehiclePurchaseDate" class="block text-sm font-medium text-dark-2 mb-1">购买日期</label>
+                        <input type="date" id="vehiclePurchaseDate" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" id="cancelAddVehicle" class="btn-secondary">取消</button>
+                        <button type="submit" class="btn-primary">添加车辆</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加保养记录模态框 -->
+    <div id="addMaintenanceModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 transform scale-95 transition-transform duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold">添加保养记录</h3>
+                    <button id="closeMaintenanceModal" class="text-gray-400 hover:text-dark transition-colors">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="addMaintenanceForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="maintenanceVehicle" class="block text-sm font-medium text-dark-2 mb-1">选择车辆</label>
+                            <select id="maintenanceVehicle" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                                <option value="">请选择车辆</option>
+                                <!-- 车辆选项将通过JavaScript动态生成 -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="maintenanceDate" class="block text-sm font-medium text-dark-2 mb-1">保养日期</label>
+                            <input type="date" id="maintenanceDate" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="maintenanceMileage" class="block text-sm font-medium text-dark-2 mb-1">保养时里程（公里）</label>
+                            <input type="number" id="maintenanceMileage" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：50000">
+                        </div>
+                        <div>
+                            <label for="maintenanceCost" class="block text-sm font-medium text-dark-2 mb-1">保养费用（元）</label>
+                            <input type="number" id="maintenanceCost" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：800">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="maintenanceType" class="block text-sm font-medium text-dark-2 mb-1">保养类型</label>
+                        <select id="maintenanceType" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                            <option value="常规保养">常规保养</option>
+                            <option value="更换机油">更换机油</option>
+                            <option value="更换轮胎">更换轮胎</option>
+                            <option value="更换刹车片">更换刹车片</option>
+                            <option value="更换电池">更换电池</option>
+                            <option value="更换火花塞">更换火花塞</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="maintenanceItems" class="block text-sm font-medium text-dark-2 mb-1">保养项目（可多选）</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            <label class="flex items-center space-x-2 p-2 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="checkbox" value="机油更换" class="maintenance-item-checkbox">
+                                <span>机油更换</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="checkbox" value="机滤更换" class="maintenance-item-checkbox">
+                                <span>机滤更换</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="checkbox" value="空滤更换" class="maintenance-item-checkbox">
+                                <span>空滤更换</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="checkbox" value="空调滤更换" class="maintenance-item-checkbox">
+                                <span>空调滤更换</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="checkbox" value="火花塞更换" class="maintenance-item-checkbox">
+                                <span>火花塞更换</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="checkbox" value="刹车油更换" class="maintenance-item-checkbox">
+                                <span>刹车油更换</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="maintenanceDescription" class="block text-sm font-medium text-dark-2 mb-1">保养描述</label>
+                        <textarea id="maintenanceDescription" rows="3" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="请输入保养的详细描述..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label for="maintenanceShop" class="block text-sm font-medium text-dark-2 mb-1">保养店铺</label>
+                        <input type="text" id="maintenanceShop" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：4S店名称或维修厂名称">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" id="cancelAddMaintenance" class="btn-secondary">取消</button>
+                        <button type="submit" class="btn-primary">添加记录</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加提醒模态框 -->
+    <div id="addReminderModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 transform scale-95 transition-transform duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold">添加保养提醒</h3>
+                    <button id="closeReminderModal" class="text-gray-400 hover:text-dark transition-colors">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="addReminderForm" class="space-y-4">
+                    <div>
+                        <label for="reminderVehicle" class="block text-sm font-medium text-dark-2 mb-1">选择车辆</label>
+                        <select id="reminderVehicle" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                            <option value="">请选择车辆</option>
+                            <!-- 车辆选项将通过JavaScript动态生成 -->
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="reminderType" class="block text-sm font-medium text-dark-2 mb-1">提醒类型</label>
+                        <select id="reminderType" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                            <option value="里程">里程</option>
+                            <option value="时间">时间</option>
+                            <option value="里程和时间">里程和时间</option>
+                        </select>
+                    </div>
+                    
+                    <div id="reminderMileageContainer">
+                        <label for="reminderMileage" class="block text-sm font-medium text-dark-2 mb-1">提醒里程（公里）</label>
+                        <input type="number" id="reminderMileage" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：60000">
+                    </div>
+                    
+                    <div id="reminderDateContainer">
+                        <label for="reminderDate" class="block text-sm font-medium text-dark-2 mb-1">提醒日期</label>
+                        <input type="date" id="reminderDate" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                    </div>
+                    
+                    <div>
+                        <label for="reminderDescription" class="block text-sm font-medium text-dark-2 mb-1">提醒描述</label>
+                        <input type="text" id="reminderDescription" class="w-full px-4 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors" placeholder="例如：更换机油">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" id="cancelAddReminder" class="btn-secondary">取消</button>
+                        <button type="submit" class="btn-primary">添加提醒</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导出设置模态框 -->
+    <div id="exportSettingsModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 transform scale-95 transition-transform duration-300">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold">导出保养记录</h3>
+                    <button id="closeExportModal" class="text-gray-400 hover:text-dark transition-colors">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="exportForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-dark-2 mb-1">选择导出格式</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-center space-x-2 p-3 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="radio" name="exportFormat" value="excel" checked class="export-format-radio">
+                                <i class="fa fa-file-excel-o text-xl text-success"></i>
+                                <span>Excel (.xlsx)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-3 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="radio" name="exportFormat" value="csv" class="export-format-radio">
+                                <i class="fa fa-file-text-o text-xl text-primary"></i>
+                                <span>CSV (.csv)</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-dark-2 mb-1">选择导出范围</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center space-x-2 p-3 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="radio" name="exportScope" value="all" checked class="export-scope-radio">
+                                <span>全部保养记录</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-3 border border-light-2 rounded-lg hover:bg-primary/5 cursor-pointer">
+                                <input type="radio" name="exportScope" value="selected" class="export-scope-radio">
+                                <span>仅选中车辆</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="exportVehiclesContainer" class="hidden space-y-2">
+                        <label class="block text-sm font-medium text-dark-2 mb-1">选择车辆</label>
+                        <!-- 车辆选项将通过JavaScript动态生成 -->
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-dark-2 mb-1">选择时间范围</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label for="exportStartDate" class="block text-xs text-dark-2 mb-1">开始日期</label>
+                                <input type="date" id="exportStartDate" class="w-full px-3 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                            </div>
+                            <div>
+                                <label for="exportEndDate" class="block text-xs text-dark-2 mb-1">结束日期</label>
+                                <input type="date" id="exportEndDate" class="w-full px-3 py-2 border border-light-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" id="cancelExport" class="btn-secondary">取消</button>
+                        <button type="submit" class="btn-primary">导出文件</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储
+        let vehicles = JSON.parse(localStorage.getItem('vehicles')) || [];
+        let maintenanceRecords = JSON.parse(localStorage.getItem('maintenanceRecords')) || [];
+        let reminders = JSON.parse(localStorage.getItem('reminders')) || [];
+        
+        // DOM 元素
+        const vehicleCountEl = document.getElementById('vehicleCount');
+        const pendingMaintenanceCountEl = document.getElementById('pendingMaintenanceCount');
+        const completedMaintenanceCountEl = document.getElementById('completedMaintenanceCount');
+        const totalCostEl = document.getElementById('totalCost');
+        const vehiclesListEl = document.getElementById('vehiclesList');
+        const maintenanceListEl = document.getElementById('maintenanceList');
+        const remindersListEl = document.getElementById('remindersList');
+        const emptyVehiclesStateEl = document.getElementById('emptyVehiclesState');
+        const emptyMaintenanceStateEl = document.getElementById('emptyMaintenanceState');
+        const emptyRemindersStateEl = document.getElementById('emptyRemindersState');
+        
+        // 模态框元素
+        const addVehicleModal = document.getElementById('addVehicleModal');
+        const addMaintenanceModal = document.getElementById('addMaintenanceModal');
+        const addReminderModal = document.getElementById('addReminderModal');
+        const exportSettingsModal = document.getElementById('exportSettingsModal');
+        
+        // 图表元素
+        let costTrendChart;
+        let maintenanceTypeChart;
+        
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化导航栏滚动效果
+            window.addEventListener('scroll', function() {
+                const header = document.getElementById('mainHeader');
+                if (window.scrollY > 10) {
+                    header.classList.add('py-2', 'shadow-md');
+                    header.classList.remove('py-3', 'shadow-sm');
+                } else {
+                    header.classList.add('py-3', 'shadow-sm');
+                    header.classList.remove('py-2', 'shadow-md');
+                }
+            });
+            
+            // 初始化模态框
+            initModals();
+            
+            // 初始化图表
+            initCharts();
+            
+            // 更新数据显示
+            updateDashboard();
+            updateVehiclesList();
+            updateMaintenanceList();
+            updateRemindersList();
+            
+            // 初始化导出功能
+            initExportFunctionality();
+        });
+        
+        // 初始化模态框
+        function initModals() {
+            // 添加车辆模态框
+            const addVehicleBtns = [
+                document.getElementById('addVehicleBtn'),
+                document.getElementById('addVehicleBtnMobile'),
+                document.getElementById('addVehicleBtnEmpty')
+            ];
+            
+            addVehicleBtns.forEach(btn => {
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        openModal(addVehicleModal);
+                    });
+                }
+            });
+            
+            document.getElementById('closeVehicleModal').addEventListener('click', () => {
+                closeModal(addVehicleModal);
+            });
+            
+            document.getElementById('cancelAddVehicle').addEventListener('click', () => {
+                closeModal(addVehicleModal);
+            });
+            
+            document.getElementById('addVehicleForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                addVehicle();
+            });
+            
+            // 添加保养记录模态框
+            const addMaintenanceBtns = [
+                document.getElementById('quickAddBtn'),
+                document.getElementById('addMaintenanceBtnEmpty')
+            ];
+            
+            addMaintenanceBtns.forEach(btn => {
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        openModal(addMaintenanceModal);
+                        populateMaintenanceVehicleSelect();
+                    });
+                }
+            });
+            
+            document.getElementById('closeMaintenanceModal').addEventListener('click', () => {
+                closeModal(addMaintenanceModal);
+            });
+            
+            document.getElementById('cancelAddMaintenance').addEventListener('click', () => {
+                closeModal(addMaintenanceModal);
+            });
+            
+            document.getElementById('addMaintenanceForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                addMaintenanceRecord();
+            });
+            
+            // 添加提醒模态框
+            const addReminderBtns = [
+                document.getElementById('addReminderBtn'),
+                document.getElementById('addReminderBtnEmpty')
+            ];
+            
+            addReminderBtns.forEach(btn => {
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        openModal(addReminderModal);
+                        populateReminderVehicleSelect();
+                    });
+                }
+            });
+            
+            document.getElementById('closeReminderModal').addEventListener('click', () => {
+                closeModal(addReminderModal);
+            });
+            
+            document.getElementById('cancelAddReminder').addEventListener('click', () => {
+                closeModal(addReminderModal);
+            });
+            
+            document.getElementById('addReminderForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                addReminder();
+            });
+            
+            // 移动端菜单
+            document.getElementById('mobileMenuBtn').addEventListener('click', toggleMobileMenu);
+            
+            // 模态框背景点击关闭
+            [addVehicleModal, addMaintenanceModal, addReminderModal, exportSettingsModal].forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeModal(modal);
+                    }
+                });
+            });
+            
+            // 提醒类型切换
+            document.getElementById('reminderType').addEventListener('change', toggleReminderFields);
+        }
+        
+        // 打开模态框
+        function openModal(modal) {
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('scale-95');
+            modal.querySelector('div').classList.add('scale-100');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // 关闭模态框
+        function closeModal(modal) {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('div').classList.remove('scale-100');
+            modal.querySelector('div').classList.add('scale-95');
+            document.body.style.overflow = '';
+            
+            // 重置表单
+            const form = modal.querySelector('form');
+            if (form) form.reset();
+        }
+        
+        // 切换移动端菜单
+        function toggleMobileMenu() {
+            const mobileMenu = document.getElementById('mobileMenu');
+            if (mobileMenu.classList.contains('opacity-0')) {
+                mobileMenu.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-full');
+                mobileMenu.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+            } else {
+                mobileMenu.classList.add('opacity-0', 'pointer-events-none', '-translate-y-full');
+                mobileMenu.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
+            }
+        }
+        
+        // 添加车辆
+        function addVehicle() {
+            const brand = document.getElementById('vehicleBrand').value.trim();
+            const model = document.getElementById('vehicleModel').value.trim();
+            const year = document.getElementById('vehicleYear').value;
+            const color = document.getElementById('vehicleColor').value.trim();
+            const plate = document.getElementById('vehiclePlate').value.trim();
+            const mileage = parseInt(document.getElementById('vehicleMileage').value);
+            const purchaseDate = document.getElementById('vehiclePurchaseDate').value;
+            
+            if (!brand || !model || !plate || !mileage || !purchaseDate) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            const newVehicle = {
+                id: Date.now(),
+                brand,
+                model,
+                year,
+                color,
+                plate,
+                mileage,
+                purchaseDate,
+                createdAt: new Date().toISOString()
+            };
+            
+            vehicles.push(newVehicle);
+            localStorage.setItem('vehicles', JSON.stringify(vehicles));
+            
+            closeModal(addVehicleModal);
+            updateVehiclesList();
+            updateDashboard();
+            showToast('车辆添加成功');
+        }
+        
+        // 添加保养记录
+        function addMaintenanceRecord() {
+            const vehicleId = parseInt(document.getElementById('maintenanceVehicle').value);
+            const date = document.getElementById('maintenanceDate').value;
+            const mileage = parseInt(document.getElementById('maintenanceMileage').value);
+            const cost = parseFloat(document.getElementById('maintenanceCost').value);
+            const type = document.getElementById('maintenanceType').value;
+            const description = document.getElementById('maintenanceDescription').value.trim();
+            const shop = document.getElementById('maintenanceShop').value.trim();
+            
+            // 获取选中的保养项目
+            const selectedItems = Array.from(document.querySelectorAll('.maintenance-item-checkbox:checked'))
+                .map(checkbox => checkbox.value);
+            
+            if (!vehicleId || !date || !mileage || !cost) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            const newRecord = {
+                id: Date.now(),
+                vehicleId,
+                date,
+                mileage,
+                cost,
+                type,
+                items: selectedItems,
+                description,
+                shop,
+                createdAt: new Date().toISOString()
+            };
+            
+            maintenanceRecords.push(newRecord);
+            localStorage.setItem('maintenanceRecords', JSON.stringify(maintenanceRecords));
+            
+            // 更新车辆当前里程
+            const vehicleIndex = vehicles.findIndex(v => v.id === vehicleId);
+            if (vehicleIndex !== -1 && vehicles[vehicleIndex].mileage < mileage) {
+                vehicles[vehicleIndex].mileage = mileage;
+                localStorage.setItem('vehicles', JSON.stringify(vehicles));
+            }
+            
+            closeModal(addMaintenanceModal);
+            updateMaintenanceList();
+            updateDashboard();
+            updateCharts();
+            showToast('保养记录添加成功');
+        }
+        
+        // 添加提醒
+        function addReminder() {
+            const vehicleId = parseInt(document.getElementById('reminderVehicle').value);
+            const type = document.getElementById('reminderType').value;
+            const mileage = parseInt(document.getElementById('reminderMileage').value);
+            const date = document.getElementById('reminderDate').value;
+            const description = document.getElementById('reminderDescription').value.trim();
+            
+            if (!vehicleId || !description) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            if (type === '里程' && !mileage) {
+                alert('请填写提醒里程');
+                return;
+            }
+            
+            if (type === '时间' && !date) {
+                alert('请填写提醒日期');
+                return;
+            }
+            
+            if (type === '里程和时间' && (!mileage || !date)) {
+                alert('请填写提醒里程和日期');
+                return;
+            }
+            
+            const newReminder = {
+                id: Date.now(),
+                vehicleId,
+                type,
+                mileage,
+                date,
+                description,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+            
+            reminders.push(newReminder);
+            localStorage.setItem('reminders', JSON.stringify(reminders));
+            
+            closeModal(addReminderModal);
+            updateRemindersList();
+            updateDashboard();
+            showToast('保养提醒添加成功');
+        }
+        
+        // 切换提醒字段显示
+        function toggleReminderFields() {
+            const type = document.getElementById('reminderType').value;
+            const mileageContainer = document.getElementById('reminderMileageContainer');
+            const dateContainer = document.getElementById('reminderDateContainer');
+            
+            if (type === '里程') {
+                mileageContainer.classList.remove('hidden');
+                dateContainer.classList.add('hidden');
+            } else if (type === '时间') {
+                mileageContainer.classList.add('hidden');
+                dateContainer.classList.remove('hidden');
+            } else { // 里程和时间
+                mileageContainer.classList.remove('hidden');
+                dateContainer.classList.remove('hidden');
+            }
+        }
+        
+        // 填充添加保养记录表单中的车辆选择
+        function populateMaintenanceVehicleSelect() {
+            const select = document.getElementById('maintenanceVehicle');
+            select.innerHTML = '<option value="">请选择车辆</option>';
+            
+            if (vehicles.length === 0) {
+                return;
+            }
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.id;
+                option.textContent = `${vehicle.brand} ${vehicle.model} (${vehicle.plate})`;
+                select.appendChild(option);
+            });
+        }
+        
+        // 填充添加提醒表单中的车辆选择
+        function populateReminderVehicleSelect() {
+            const select = document.getElementById('reminderVehicle');
+            select.innerHTML = '<option value="">请选择车辆</option>';
+            
+            if (vehicles.length === 0) {
+                return;
+            }
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.id;
+                option.textContent = `${vehicle.brand} ${vehicle.model} (${vehicle.plate})`;
+                select.appendChild(option);
+            });
+        }
+        
+        // 更新仪表盘数据
+        function updateDashboard() {
+            // 更新车辆总数
+            vehicleCountEl.textContent = vehicles.length;
+            
+            // 更新待保养车辆数
+            const pendingReminders = reminders.filter(r => !r.completed);
+            pendingMaintenanceCountEl.textContent = pendingReminders.length;
+            
+            // 更新已完成保养数
+            const currentMonth = new Date().getMonth() + 1;
+            const currentYear = new Date().getFullYear();
+            const completedThisMonth = maintenanceRecords.filter(record => {
+                const [year, month] = record.date.split('-');
+                return parseInt(year) === currentYear && parseInt(month) === currentMonth;
+            });
+            completedMaintenanceCountEl.textContent = completedThisMonth.length;
+            
+            // 更新总保养费用
+            const totalCost = maintenanceRecords.reduce((sum, record) => sum + record.cost, 0);
+            totalCostEl.textContent = `¥${totalCost.toLocaleString()}`;
+            
+            // 显示或隐藏空状态
+            if (vehicles.length === 0) {
+                emptyVehiclesStateEl.classList.remove('hidden');
+                vehiclesListEl.classList.add('hidden');
+            } else {
+                emptyVehiclesStateEl.classList.add('hidden');
+                vehiclesListEl.classList.remove('hidden');
+            }
+            
+            if (maintenanceRecords.length === 0) {
+                emptyMaintenanceStateEl.classList.remove('hidden');
+                maintenanceListEl.classList.add('hidden');
+            } else {
+                emptyMaintenanceStateEl.classList.add('hidden');
+                maintenanceListEl.classList.remove('hidden');
+            }
+            
+            if (reminders.length === 0) {
+                emptyRemindersStateEl.classList.remove('hidden');
+                remindersListEl.classList.add('hidden');
+            } else {
+                emptyRemindersStateEl.classList.add('hidden');
+                remindersListEl.classList.remove('hidden');
+            }
+        }
+        
+        // 更新车辆列表
+        function updateVehiclesList() {
+            vehiclesListEl.innerHTML = '';
+            
+            vehicles.forEach(vehicle => {
+                const vehicleCard = document.createElement('div');
+                vehicleCard.className = 'bg-white rounded-xl shadow-md overflow-hidden card-hover';
+                vehicleCard.innerHTML = `
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center">
+                                <div class="bg-primary/10 p-3 rounded-lg mr-4">
+                                    <i class="fa fa-car text-primary text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg">${vehicle.brand} ${vehicle.model}</h3>
+                                    <p class="text-dark-2">${vehicle.plate}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-dark-2 text-sm">当前里程</p>
+                                <p class="font-bold">${vehicle.mileage.toLocaleString()} km</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-dark-2 mb-4">
+                            <div>
+                                <p>购买日期: ${formatDate(vehicle.purchaseDate)}</p>
+                            </div>
+                            <div>
+                                <p>已保养: ${maintenanceRecords.filter(r => r.vehicleId === vehicle.id).length} 次</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button class="btn-secondary text-sm flex-1 py-1.5 view-vehicle-btn" data-id="${vehicle.id}">
+                                <i class="fa fa-eye mr-1"></i> 查看详情
+                            </button>
+                            <button class="btn-primary text-sm flex-1 py-1.5 add-maintenance-btn" data-id="${vehicle.id}">
+                                <i class="fa fa-plus mr-1"></i> 添加记录
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                vehiclesListEl.appendChild(vehicleCard);
+                
+                // 添加事件监听器
+                vehicleCard.querySelector('.view-vehicle-btn').addEventListener('click', () => {
+                    viewVehicleDetails(vehicle.id);
+                });
+                
+                vehicleCard.querySelector('.add-maintenance-btn').addEventListener('click', () => {
+                    openModal(addMaintenanceModal);
+                    document.getElementById('maintenanceVehicle').value = vehicle.id;
+                });
+            });
+        }
+        
+        // 查看车辆详情
+        function viewVehicleDetails(vehicleId) {
+            const vehicle = vehicles.find(v => v.id === vehicleId);
+            if (!vehicle) return;
+            
+            // 创建详情模态框
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-auto">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold">${vehicle.brand} ${vehicle.model} (${vehicle.plate})</h3>
+                            <button class="close-vehicle-details text-gray-400 hover:text-dark transition-colors">
+                                <i class="fa fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <h4 class="font-medium text-dark-2 mb-2">基本信息</h4>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">品牌:</span>
+                                        <span>${vehicle.brand}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">型号:</span>
+                                        <span>${vehicle.model}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">年份:</span>
+                                        <span>${vehicle.year}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">颜色:</span>
+                                        <span>${vehicle.color}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">购买日期:</span>
+                                        <span>${formatDate(vehicle.purchaseDate)}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">当前里程:</span>
+                                        <span>${vehicle.mileage.toLocaleString()} km</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="font-medium text-dark-2 mb-2">保养统计</h4>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">总保养次数:</span>
+                                        <span>${maintenanceRecords.filter(r => r.vehicleId === vehicleId).length}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">总保养费用:</span>
+                                        <span>¥${maintenanceRecords.filter(r => r.vehicleId === vehicleId).reduce((sum, r) => sum + r.cost, 0).toLocaleString()}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">最近保养:</span>
+                                        <span>${getLatestMaintenanceDate(vehicleId)}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-dark-2">下次保养提醒:</span>
+                                        <span>${getNextReminder(vehicleId)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-medium text-dark-2 mb-2">保养记录</h4>
+                            <div id="vehicle-maintenance-records" class="space-y-3">
+                                <!-- 保养记录将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3">
+                            <button class="btn-secondary close-vehicle-details">关闭</button>
+                            <button class="btn-primary add-vehicle-maintenance" data-id="${vehicle.id}">
+                                <i class="fa fa-plus mr-2"></i>添加保养记录
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // 填充保养记录
+            const recordsContainer = modal.querySelector('#vehicle-maintenance-records');
+            const vehicleRecords = maintenanceRecords
+                .filter(r => r.vehicleId === vehicleId)
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            if (vehicleRecords.length === 0) {
+                recordsContainer.innerHTML = `
+                    <div class="p-4 text-center text-dark-2 bg-light-1 rounded-lg">
+                        暂无保养记录
+                    </div>
+                `;
+            } else {
+                vehicleRecords.forEach(record => {
+                    const recordEl = document.createElement('div');
+                    recordEl.className = 'p-3 bg-light-1 rounded-lg';
+                    recordEl.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h5 class="font-medium">${record.type}</h5>
+                                <p class="text-sm text-dark-2">${formatDate(record.date)} | ${record.mileage.toLocaleString()} km</p>
+                            </div>
+                            <div class="font-medium">¥${record.cost.toLocaleString()}</div>
+                        </div>
+                        <div class="mt-2 text-sm">
+                            ${record.items.length > 0 ? `<p class="text-dark-2 mb-1">保养项目: ${record.items.join('、')}</p>` : ''}
+                            ${record.shop ? `<p class="text-dark-2">保养店铺: ${record.shop}</p>` : ''}
+                        </div>
+                    `;
+                    recordsContainer.appendChild(recordEl);
+                });
+            }
+            
+            // 添加事件监听器
+            modal.querySelectorAll('.close-vehicle-details').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            });
+            
+            modal.querySelector('.add-vehicle-maintenance').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                openModal(addMaintenanceModal);
+                document.getElementById('maintenanceVehicle').value = vehicle.id;
+            });
+            
+            // 点击背景关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+        }
+        
+        // 获取最近保养日期
+        function getLatestMaintenanceDate(vehicleId) {
+            const records = maintenanceRecords
+                .filter(r => r.vehicleId === vehicleId)
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            if (records.length === 0) {
+                return '无记录';
+            }
+            
+            return formatDate(records[0].date);
+        }
+        
+        // 获取下次保养提醒
+        function getNextReminder(vehicleId) {
+            const vehicleReminders = reminders
+                .filter(r => r.vehicleId === vehicleId && !r.completed)
+                .sort((a, b) => {
+                    if (a.type === '里程' && b.type === '里程') {
+                        return a.mileage - b.mileage;
+                    } else if (a.type === '时间' && b.type === '时间') {
+                        return new Date(a.date) - new Date(b.date);
+                    } else if (a.type === '里程' && b.type === '时间') {
+                        return -1; // 优先显示里程提醒
+                    } else {
+                        return 1;
+                    }
+                });
+            
+            if (vehicleReminders.length === 0) {
+                return '无提醒';
+            }
+            
+            const nextReminder = vehicleReminders[0];
+            if (nextReminder.type === '里程') {
+                return `里程达到 ${nextReminder.mileage.toLocaleString()} km`;
+            } else if (nextReminder.type === '时间') {
+                return `日期 ${formatDate(nextReminder.date)}`;
+            } else {
+                return `里程 ${nextReminder.mileage.toLocaleString()} km 或日期 ${formatDate(nextReminder.date)}`;
+            }
+        }
+        
+        // 更新保养记录列表
+        function updateMaintenanceList() {
+            maintenanceListEl.innerHTML = '';
+            
+            // 按日期排序，最新的在前
+            const sortedRecords = [...maintenanceRecords].sort((a, b) => {
+                return new Date(b.date) - new Date(a.date);
+            });
+            
+            sortedRecords.forEach(record => {
+                const vehicle = vehicles.find(v => v.id === record.vehicleId);
+                if (!vehicle) return;
+                
+                const recordCard = document.createElement('div');
+                recordCard.className = 'bg-white rounded-xl shadow-md overflow-hidden card-hover';
+                recordCard.innerHTML = `
+                    <div class="p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h3 class="font-bold">${record.type}</h3>
+                                <p class="text-dark-2 text-sm">${vehicle.brand} ${vehicle.model} (${vehicle.plate})</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold">¥${record.cost.toLocaleString()}</p>
+                                <p class="text-dark-2 text-sm">${formatDate(record.date)}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-dark-2 mb-3">
+                            <div>
+                                <p>里程: ${record.mileage.toLocaleString()} km</p>
+                            </div>
+                            <div>
+                                <p>${record.shop || '未知店铺'}</p>
+                            </div>
+                        </div>
+                        
+                        ${record.items.length > 0 ? `
+                            <div class="mb-4">
+                                <p class="text-dark-2 text-sm mb-1">保养项目:</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${record.items.map(item => `<span class="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">${item}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${record.description ? `
+                            <div class="bg-light-1 p-3 rounded-lg mb-4">
+                                <p class="text-sm">${record.description}</p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="flex justify-end">
+                            <button class="text-primary hover:text-primary/80 text-sm flex items-center delete-maintenance-btn" data-id="${record.id}">
+                                <i class="fa fa-trash-o mr-1"></i> 删除记录
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                maintenanceListEl.appendChild(recordCard);
+                
+                // 添加删除事件监听器
+                recordCard.querySelector('.delete-maintenance-btn').addEventListener('click', () => {
+                    deleteMaintenanceRecord(record.id);
+                });
+            });
+        }
+        
+        // 删除保养记录
+        function deleteMaintenanceRecord(recordId) {
+            if (confirm('确定要删除这条保养记录吗？此操作不可撤销。')) {
+                maintenanceRecords = maintenanceRecords.filter(r => r.id !== recordId);
+                localStorage.setItem('maintenanceRecords', JSON.stringify(maintenanceRecords));
+                updateMaintenanceList();
+                updateDashboard();
+                updateCharts();
+                showToast('保养记录已删除');
+            }
+        }
+        
+        // 更新提醒列表
+        function updateRemindersList() {
+            remindersListEl.innerHTML = '';
+            
+            // 按提醒日期/里程排序
+            const sortedReminders = [...reminders].sort((a, b) => {
+                if (a.type === '里程' && b.type === '里程') {
+                    return a.mileage - b.mileage;
+                } else if (a.type === '时间' && b.type === '时间') {
+                    return new Date(a.date) - new Date(b.date);
+                } else if (a.type === '里程' && b.type === '时间') {
+                    // 里程提醒优先
+                    const vehicleA = vehicles.find(v => v.id === a.vehicleId);
+                    const vehicleB = vehicles.find(v => v.id === b.vehicleId);
+                    
+                    if (vehicleA && vehicleB) {
+                        const mileageLeftA = a.mileage - vehicleA.mileage;
+                        const daysLeftB = Math.ceil((new Date(b.date) - new Date()) / (1000 * 60 * 60 * 24));
+                        
+                        return mileageLeftA - daysLeftB;
+                    }
+                }
+                
+                return -1;
+            });
+            
+            sortedReminders.forEach(reminder => {
+                const vehicle = vehicles.find(v => v.id === reminder.vehicleId);
+                if (!vehicle) return;
+                
+                const reminderCard = document.createElement('div');
+                reminderCard.className = 'bg-white rounded-xl shadow-md overflow-hidden card-hover';
+                
+                // 计算提醒距离现在的时间或里程
+                let timeOrMileageLeft = '';
+                let urgencyClass = '';
+                
+                if (reminder.type === '里程' || reminder.type === '里程和时间') {
+                    const mileageLeft = reminder.mileage - vehicle.mileage;
+                    
+                    if (mileageLeft <= 0) {
+                        timeOrMileageLeft = '<span class="text-danger font-medium">已到期</span>';
+                        urgencyClass = 'border-l-4 border-danger';
+                    } else if (mileageLeft <= 1000) {
+                        timeOrMileageLeft = `<span class="text-warning font-medium">剩余 ${mileageLeft.toLocaleString()} km</span>`;
+                        urgencyClass = 'border-l-4 border-warning';
+                    } else {
+                        timeOrMileageLeft = `<span class="text-success font-medium">剩余 ${mileageLeft.toLocaleString()} km</span>`;
+                        urgencyClass = 'border-l-4 border-success';
+                    }
+                }
+                
+                if (reminder.type === '时间' || reminder.type === '里程和时间') {
+                    const daysLeft = Math.ceil((new Date(reminder.date) - new Date()) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysLeft <= 0) {
+                        timeOrMileageLeft = '<span class="text-danger font-medium">已到期</span>';
+                        urgencyClass = 'border-l-4 border-danger';
+                    } else if (daysLeft <= 7) {
+                        timeOrMileageLeft = `<span class="text-warning font-medium">剩余 ${daysLeft} 天</span>`;
+                        urgencyClass = 'border-l-4 border-warning';
+                    } else {
+                        timeOrMileageLeft = `<span class="text-success font-medium">剩余 ${daysLeft} 天</span>`;
+                        urgencyClass = 'border-l-4 border-success';
+                    }
+                }
+                
+                reminderCard.className = `bg-white rounded-xl shadow-md overflow-hidden card-hover ${urgencyClass}`;
+                reminderCard.innerHTML = `
+                    <div class="p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h3 class="font-bold">${reminder.description}</h3>
+                                <p class="text-dark-2 text-sm">${vehicle.brand} ${vehicle.model} (${vehicle.plate})</p>
+                            </div>
+                            <div>
+                                ${timeOrMileageLeft}
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            ${reminder.type === '里程' || reminder.type === '里程和时间' ? `
+                                <div class="bg-light-1 p-3 rounded-lg">
+                                    <p class="text-dark-2 text-sm mb-1">提醒里程</p>
+                                    <p class="font-medium">${reminder.mileage.toLocaleString()} km</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${reminder.type === '时间' || reminder.type === '里程和时间' ? `
+                                <div class="bg-light-1 p-3 rounded-lg">
+                                    <p class="text-dark-2 text-sm mb-1">提醒日期</p>
+                                    <p class="font-medium">${formatDate(reminder.date)}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button class="btn-secondary text-sm flex-1 py-1.5 complete-reminder-btn" data-id="${reminder.id}">
+                                <i class="fa fa-check mr-1"></i> 标记已完成
+                            </button>
+                            <button class="btn-primary text-sm flex-1 py-1.5 edit-reminder-btn" data-id="${reminder.id}">
+                                <i class="fa fa-pencil mr-1"></i> 编辑提醒
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                remindersListEl.appendChild(reminderCard);
+                
+                // 添加事件监听器
+                reminderCard.querySelector('.complete-reminder-btn').addEventListener('click', () => {
+                    completeReminder(reminder.id);
+                });
+                
+                reminderCard.querySelector('.edit-reminder-btn').addEventListener('click', () => {
+                    editReminder(reminder.id);
+                });
+            });
+        }
+        
+        // 标记提醒为已完成
+        function completeReminder(reminderId) {
+            const reminderIndex = reminders.findIndex(r => r.id === reminderId);
+            if (reminderIndex !== -1) {
+                reminders[reminderIndex].completed = true;
+                localStorage.setItem('reminders', JSON.stringify(reminders));
+                updateRemindersList();
+                updateDashboard();
+                showToast('提醒已标记为已完成');
+            }
+        }
+        
+        // 编辑提醒
+        function editReminder(reminderId) {
+            const reminder = reminders.find(r => r.id === reminderId);
+            if (!reminder) return;
+            
+            openModal(addReminderModal);
+            
+            // 填充表单
+            document.getElementById('reminderVehicle').value = reminder.vehicleId;
+            document.getElementById('reminderType').value = reminder.type;
+            document.getElementById('reminderMileage').value = reminder.mileage;
+            document.getElementById('reminderDate').value = reminder.date;
+            document.getElementById('reminderDescription').value = reminder.description;
+            
+            // 切换提醒字段
+            toggleReminderFields();
+            
+            // 修改提交按钮文本
+            const submitButton = document.getElementById('addReminderForm').querySelector('button[type="submit"]');
+            submitButton.textContent = '保存修改';
+            
+            // 临时替换提交事件
+            const originalSubmit = document.getElementById('addReminderForm').onsubmit;
+            document.getElementById('addReminderForm').onsubmit = function(e) {
+                e.preventDefault();
+                
+                // 更新提醒数据
+                reminder.vehicleId = parseInt(document.getElementById('reminderVehicle').value);
+                reminder.type = document.getElementById('reminderType').value;
+                reminder.mileage = parseInt(document.getElementById('reminderMileage').value);
+                reminder.date = document.getElementById('reminderDate').value;
+                reminder.description = document.getElementById('reminderDescription').value;
+                
+                localStorage.setItem('reminders', JSON.stringify(reminders));
+                updateRemindersList();
+                updateDashboard();
+                
+                // 恢复原始提交事件
+                document.getElementById('addReminderForm').onsubmit = originalSubmit;
+                submitButton.textContent = '添加提醒';
+                
+                closeModal(addReminderModal);
+                showToast('提醒已更新');
+            };
+        }
+        
+        // 初始化图表
+        function initCharts() {
+            // 保养费用趋势图
+            const costTrendCtx = document.getElementById('costTrendChart').getContext('2d');
+            costTrendChart = new Chart(costTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '保养费用 (元)',
+                        data: [],
+                        borderColor: '#165DFF',
+                        backgroundColor: 'rgba(22, 93, 255, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `费用: ¥${context.raw.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                borderDash: [2, 4],
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '¥' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 保养类型分布图
+            const maintenanceTypeCtx = document.getElementById('maintenanceTypeChart').getContext('2d');
+            maintenanceTypeChart = new Chart(maintenanceTypeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#165DFF',
+                            '#0FC6C2',
+                            '#FF7D00',
+                            '#F53F3F',
+                            '#722ED1',
+                            '#EB7370'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                boxWidth: 12
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+            
+            // 初始化图表数据
+            updateCharts();
+        }
+        
+        // 更新图表数据
+        function updateCharts() {
+            // 更新保养费用趋势图
+            const monthlyCosts = {};
+            
+            maintenanceRecords.forEach(record => {
+                const [year, month] = record.date.split('-');
+                const key = `${year}-${month}`;
+                
+                if (!monthlyCosts[key]) {
+                    monthlyCosts[key] = 0;
+                }
+                
+                monthlyCosts[key] += record.cost;
+            });
+            
+            // 按时间排序
+            const sortedMonths = Object.keys(monthlyCosts).sort();
+            const labels = sortedMonths.map(month => {
+                const [year, monthNum] = month.split('-');
+                return `${year}年${monthNum}月`;
+            });
+            const data = sortedMonths.map(month => monthlyCosts[month]);
+            
+            costTrendChart.data.labels = labels;
+            costTrendChart.data.datasets[0].data = data;
+            costTrendChart.update();
+            
+            // 更新保养类型分布图
+            const typeCounts = {};
+            
+            maintenanceRecords.forEach(record => {
+                if (!typeCounts[record.type]) {
+                    typeCounts[record.type] = 0;
+                }
+                
+                typeCounts[record.type]++;
+            });
+            
+            const typeLabels = Object.keys(typeCounts);
+            const typeData = Object.values(typeCounts);
+            
+            maintenanceTypeChart.data.labels = typeLabels;
+            maintenanceTypeChart.data.datasets[0].data = typeData;
+            maintenanceTypeChart.update();
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '未知';
+            
+            const date = new Date(dateString);
+            return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+        }
+        
+        // 显示提示消息
+        function showToast(message) {
+            // 检查是否已存在toast
+            let toast = document.getElementById('toast-message');
+            if (toast) {
+                document.body.removeChild(toast);
+            }
+            
+            toast = document.createElement('div');
+            toast.id = 'toast-message';
+            toast.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-dark text-white px-6 py-3 rounded-lg shadow-lg z-50 opacity-0 transition-opacity duration-300';
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            // 显示toast
+            setTimeout(() => {
+                toast.classList.remove('opacity-0');
+                toast.classList.add('opacity-100');
+            }, 10);
+            
+            // 3秒后隐藏toast
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+                
+                // 完全隐藏后移除元素
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+        
+        // 初始化导出功能
+        function initExportFunctionality() {
+            // 导出按钮事件
+            document.getElementById('exportMaintenanceBtn').addEventListener('click', () => {
+                if (maintenanceRecords.length === 0) {
+                    alert('没有保养记录可导出');
+                    return;
+                }
+                
+                openModal(exportSettingsModal);
+                populateExportVehiclesSelect();
+                
+                // 设置默认日期范围为最近6个月
+                const today = new Date();
+                const sixMonthsAgo = new Date();
+                sixMonthsAgo.setMonth(today.getMonth() - 6);
+                
+                document.getElementById('exportStartDate').valueAsDate = sixMonthsAgo;
+                document.getElementById('exportEndDate').valueAsDate = today;
+            });
+            
+            // 关闭导出模态框
+            document.getElementById('closeExportModal').addEventListener('click', () => {
+                closeModal(exportSettingsModal);
+            });
+            
+            document.getElementById('cancelExport').addEventListener('click', () => {
+                closeModal(exportSettingsModal);
+            });
+            
+            // 导出范围选择事件
+            document.querySelectorAll('.export-scope-radio').forEach(radio => {
+                radio.addEventListener('change', toggleExportVehiclesContainer);
+            });
+            
+            // 导出表单提交
+            document.getElementById('exportForm').addEventListener('submit', (
